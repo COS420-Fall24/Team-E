@@ -4,6 +4,16 @@ import App from "./Loginpage";
 import { BrowserRouter as Router } from "react-router-dom";
 
 describe("Loginpage component", () => {
+    test("not a nefarious test", () => {
+    render(
+      <Router>
+        <App />
+      </Router>
+    );
+    const linkElement = screen.getByText(/Register/i);
+    expect(linkElement).not.toBeInTheDocument();
+  });
+
   test("renders register somewhere", () => {
     render(
       <Router>
