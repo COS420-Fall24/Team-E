@@ -17,6 +17,8 @@ function App({ points, setPoints }) {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
   const [tasks, setTasks] = useState([]);
+  const [completedTasks, setCompletedTasks] = useState([]);
+  const [showTasks, setShowTasks] = useState(true);
 
   // Add this helper function to check if a date is valid
   const isValidDate = (date) => {
@@ -24,7 +26,7 @@ function App({ points, setPoints }) {
   };
 
    // Wrap fetchTasksFromFirestore in useCallback
-   const fetchTasksFromFirestore = useCallback(async () => {
+   const fetchUserTasks = useCallback(async () => {
     try {
       const userId = auth.currentUser?.uid;
       if (!userId) {
@@ -37,80 +39,48 @@ function App({ points, setPoints }) {
 
       if (docSnap.exists()) {
         const userData = docSnap.data();
+        
+        // Process active tasks
         if (userData.tasks) {
-          console.log('Raw tasks from Firestore:', userData.tasks);
           const processedTasks = userData.tasks
             .map(task => ({
               ...task,
               dueDate: new Date(task.dueDate)
             }))
             .filter(task => isValidDate(task.dueDate));
-
-          console.log('Processed tasks:', processedTasks);
           setTasks(processedTasks);
+        }
+
+        // Process completed tasks
+        if (userData.completedTasks) {
+          const recentTasks = userData.completedTasks.slice(-5).reverse();
+          setCompletedTasks(recentTasks);
         }
       }
     } catch (error) {
       console.error("Error fetching tasks:", error);
     }
-  }, []); // Empty dependency array because it doesn't depend on any props or state
+  }, []);
 
-  useEffect(()=>{
-        onAuthStateChanged(auth, (user) => {
-          
-            if (user) {
-              // User is signed in, see docs for a list of available properties
-              // https://firebase.google.com/docs/reference/js/firebase.User
-              const uid = user.uid;
-              const email = user.email;
-              // ...
-              console.log("uid", uid)
-              console.log("email", email)
-              fetchUserData()
-              fetchTasksFromFirestore();
+  useEffect(() => {
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const uid = user.uid;
+        const email = user.email;
+        console.log("uid", uid)
+        console.log("email", email)
+        fetchUserData();
+        fetchUserTasks(); // Use the combined function
+      } else {
+        console.log("user is logged out")
+        navigate("/");
+      }
+    });
+  }, [fetchUserTasks, navigate]); // Update dependencies
 
-            } else {
-              // User is signed out
-              // ...
-              console.log("user is logged out")
-              navigate("/");
-              
-            }
-          });
-
-    },[fetchTasksFromFirestore, navigate]); // Include fetchTasksFromFirestore and navigate
-
-        const getUserTasks = () => {
-        try {
-            let userId = null;
-
-            // Wait for the authenticated user
-            onAuthStateChanged(auth, async (user) => {
-              if (user) {
-                userId = user.uid; // Get the user's UID
-
-
-                    // Fetch Firestore document
-              const userRef = doc(db, 'user', userId); // Reference to the user's document
-              const userDoc = await getDoc(userRef);
-
-
-              console.log(userDoc.data())
-                
-              } else {
-                console.log('No user is signed in.');
-              }
-            });
-          } catch (error) {
-            console.error('Error fetching document:', error);
-          }
-        }
-
-        
-        
-        const fetchUserData = async () => {
-          try {
-            let userId = null;
+  const fetchUserData = async () => {
+    try {
+      let userId = null;
 
             // Wait for the authenticated user
             onAuthStateChanged(auth, async (user) => {
@@ -137,16 +107,15 @@ function App({ points, setPoints }) {
           }
         };
 
-
-        const handleLogout = () => {               
-        signOut(auth).then(() => {
-        // Sign-out successful.
-            navigate("/");
-            console.log("Signed out successfully")
-        }).catch((error) => {
-        // An error happened.
-        });
-    }
+  const handleLogout = () => {               
+    signOut(auth).then(() => {
+    // Sign-out successful.
+        navigate("/");
+        console.log("Signed out successfully")
+    }).catch((error) => {
+    // An error happened.
+    });
+  }
   return (
     <>
       <div className="App">
@@ -220,41 +189,16 @@ function App({ points, setPoints }) {
                 className="SeparatorRoot"
                 style={{ margin: "15px 0" }}
               />
-              <p className="App-colBody">
-                <img src={star} alt="star"></img> Task Complete
-              </p>
-              <p className="App-colBody2" style={{ paddingLeft: "8%" }}>
-                {" "}
-                Effect on avatar
-              </p>
-              <p className="App-colBody">
-                <img src={star} alt="star"></img> Task Complete
-              </p>
-              <p className="App-colBody2" style={{ paddingLeft: "8%" }}>
-                {" "}
-                Effect on avatar
-              </p>
-              <p className="App-colBody">
-                <img src={star} alt="star"></img> Task Complete
-              </p>
-              <p className="App-colBody2" style={{ paddingLeft: "8%" }}>
-                {" "}
-                Effect on avatar
-              </p>
-              <p className="App-colBody">
-                <img src={star} alt="star"></img> Task Complete
-              </p>
-              <p className="App-colBody2" style={{ paddingLeft: "8%" }}>
-                {" "}
-                Effect on avatar
-              </p>
-              <p className="App-colBody">
-                <img src={star} alt="star"></img> Task Complete
-              </p>
-              <p className="App-colBody2" style={{ paddingLeft: "8%" }}>
-                {" "}
-                Effect on avatar
-              </p>
+              {completedTasks.map((task, index) => (
+                <div key={index}>
+                  <p className="App-colBody">
+                    <img src={star} alt="star"></img> {task.title}
+                  </p>
+                  <p className="App-colBody2" style={{ paddingLeft: "8%" }}>
+                    +{task.points} points
+                  </p>
+                </div>
+              ))}
             </div>
           </Col>
           <Col>
@@ -300,33 +244,37 @@ function App({ points, setPoints }) {
                   className="SeparatorRoot"
                   style={{ margin: "15px 0" }}
                 />
-                {tasks.slice(0, 2).map((t) => (
-              <div>
-                <p
-                  style={{
-                    fontSize: "90%",
-                    fontWeight: "600",
-                    lineHeight: "50%",
-                    paddingTop: "5%",
-                  }}
-                >
-                  {t.title}
-                </p>
-                <p
-                  style={{
-                    fontSize: "80%",
-                    fontWeight: "400",
-                    lineHeight: "50%",
-                    color: "gray",
-                  }}
-                >
-                  Due: {t.dueDate.toLocaleString()}
-                </p>
-              </div>
-            ))}
+                {showTasks && tasks.slice(0, 2).map((t) => (
+                  <div>
+                    <p
+                      style={{
+                        fontSize: "90%",
+                        fontWeight: "600",
+                        lineHeight: "50%",
+                        paddingTop: "5%",
+                      }}
+                    >
+                      {t.title}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "80%",
+                        fontWeight: "400",
+                        lineHeight: "50%",
+                        color: "gray",
+                      }}
+                    >
+                      Due: {t.dueDate.toLocaleString()}
+                    </p>
+                  </div>
+                ))}
                 <p>
-                  <Button onClick={() => {getUserTasks()}} variant="primary" size="small">
-                    Hide
+                  <Button 
+                    onClick={() => setShowTasks(!showTasks)} 
+                    variant="primary" 
+                    size="small"
+                  >
+                    {showTasks ? 'Hide' : 'Show'}
                   </Button>
                 </p>
               </div>

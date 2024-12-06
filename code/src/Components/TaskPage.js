@@ -45,9 +45,10 @@ function TaskPage({ points, setPoints }) {
 
   const completeTask = async (task) => {
     try {
-      // Update local state
+      // Update local state for active tasks and points only
       setPoints((prevPoints) => prevPoints + task.points); 
       setTasks((prevTasks) => prevTasks.filter((t) => t !== task));
+      
       updateAvatar(task);
 
       // Update Firestore
@@ -68,10 +69,14 @@ function TaskPage({ points, setPoints }) {
           t.dueDate !== task.dueDate.toISOString()
         );
         
-        // Update both tasks and points in one operation
+        // Update tasks, points, and completedTasks in Firestore only
         await updateDoc(userDocRef, { 
           tasks: updatedTasks,
-          points: (userData.points || 0) + task.points // Add points to existing total or start at 0
+          points: (userData.points || 0) + task.points,
+          completedTasks: [
+            { ...task, dueDate: task.dueDate.toISOString() },
+            ...(userData.completedTasks || []).slice(0, 4) // Keep only the 4 most recent to make room for new one
+          ]
         });
       }
     } catch (error) {
@@ -163,16 +168,14 @@ function TaskPage({ points, setPoints }) {
 
       if (docSnap.exists()) {
         const userData = docSnap.data();
+        // Process active tasks only
         if (userData.tasks) {
-          console.log('Raw tasks from Firestore:', userData.tasks);
           const processedTasks = userData.tasks
             .map(task => ({
               ...task,
               dueDate: new Date(task.dueDate)
             }))
             .filter(task => isValidDate(task.dueDate));
-
-          console.log('Processed tasks:', processedTasks);
           setTasks(processedTasks);
         }
       }
