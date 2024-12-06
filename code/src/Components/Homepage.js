@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import logo from "./../logo.svg";
 import logo2 from "./../logo2.svg";
 import star from "./../star.svg";
@@ -13,9 +13,47 @@ import { db } from "./firebase";
 import { doc, getDoc } from 'firebase/firestore';
 
 
-function App() {
+function App({ points, setPoints }) {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
+  const [tasks, setTasks] = useState([]);
+
+  // Add this helper function to check if a date is valid
+  const isValidDate = (date) => {
+    return date instanceof Date && !isNaN(date);
+  };
+
+   // Wrap fetchTasksFromFirestore in useCallback
+   const fetchTasksFromFirestore = useCallback(async () => {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        console.error("No user is signed in");
+        return;
+      }
+
+      const userDocRef = doc(db, "user", userId);
+      const docSnap = await getDoc(userDocRef);
+
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+        if (userData.tasks) {
+          console.log('Raw tasks from Firestore:', userData.tasks);
+          const processedTasks = userData.tasks
+            .map(task => ({
+              ...task,
+              dueDate: new Date(task.dueDate)
+            }))
+            .filter(task => isValidDate(task.dueDate));
+
+          console.log('Processed tasks:', processedTasks);
+          setTasks(processedTasks);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+    }
+  }, []); // Empty dependency array because it doesn't depend on any props or state
 
   useEffect(()=>{
         onAuthStateChanged(auth, (user) => {
@@ -29,7 +67,7 @@ function App() {
               console.log("uid", uid)
               console.log("email", email)
               fetchUserData()
-
+              fetchTasksFromFirestore();
 
             } else {
               // User is signed out
@@ -40,7 +78,7 @@ function App() {
             }
           });
 
-    },)
+    },[fetchTasksFromFirestore, navigate]); // Include fetchTasksFromFirestore and navigate
 
         const getUserTasks = () => {
         try {
@@ -116,10 +154,23 @@ function App() {
         <header className="App-header">
           <img src={logo} className="App-logo" alt="logo" />
           <img src={logo2} className="App-logo2" alt="logo" />
+          {/* Points Display */}
+          <div
+            className="points-display"
+            style={{
+              padding: '10px',
+              backgroundColor: "white",
+              fontWeight: "bold",
+              color: "darkgreen",
+            }}
+          >
+            Points: {points} {/* Dynamically show points */}
+          </div>
           <div className="App-buttons">
             <div>
               Hello {userName}
-            </div>
+            </div> 
+            
             <Button
               onClick={() => {
                 navigate("/task");
@@ -249,10 +300,30 @@ function App() {
                   className="SeparatorRoot"
                   style={{ margin: "15px 0" }}
                 />
-                <p className="App-colBody">Task 1</p>
-                <p className="App-colBody2">Deadline</p>
-                <p className="App-colBody">Task 2</p>
-                <p className="App-colBody2">Deadline</p>
+                {tasks.slice(0, 2).map((t) => (
+              <div>
+                <p
+                  style={{
+                    fontSize: "90%",
+                    fontWeight: "600",
+                    lineHeight: "50%",
+                    paddingTop: "5%",
+                  }}
+                >
+                  {t.title}
+                </p>
+                <p
+                  style={{
+                    fontSize: "80%",
+                    fontWeight: "400",
+                    lineHeight: "50%",
+                    color: "gray",
+                  }}
+                >
+                  Due: {t.dueDate.toLocaleString()}
+                </p>
+              </div>
+            ))}
                 <p>
                   <Button onClick={() => {getUserTasks()}} variant="primary" size="small">
                     Hide

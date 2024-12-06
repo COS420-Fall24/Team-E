@@ -1,11 +1,13 @@
-import React from "react";
+import React, {useState} from "react";
 import logo from "./../logo.svg";
 import logo2 from "./../logo2.svg";
 import { Button, Col } from "react-bootstrap";
+import { doc, updateDoc } from "firebase/firestore";
+import { auth } from '../Components/firebase';
+import { db } from "./firebase";
 //import { Link } from 'react-router-dom'; // might be useful later
 import { useNavigate } from "react-router-dom";
 import "./../App.css";
-import { useState } from "react";
 import { FaChevronDown } from "react-icons/fa";
 import eyeblue from './AvatarOptions/eyeblue.png';
 import eyegreen from './AvatarOptions/eyegreen.png';
@@ -18,7 +20,7 @@ import hearts from './AvatarOptions/bghearts.png';
 import hairbrown from './AvatarOptions/hairbrown.png';
 
 
-function AvatarPage() {
+function AvatarPage({ points, setPoints, userInventory, setUserInventory}) {
   const navigate = useNavigate();
 
   // State to track which dropdown is currently visible (null = none visible)
@@ -27,33 +29,6 @@ function AvatarPage() {
   // State to track selected options for each dropdown
   const [selectedOptions, setSelectedOptions] = useState(Array(6).fill("None"));
 
-  // Toggles dropdown visibility for the selected index
-  const toggleDropdown = (index) => {
-    setDropdownVisibleIndex(dropdownVisibleIndex === index ? null : index);
-  };
-
-  // Sets the selected option for a specific dropdown and closes it
-  const selectOption = (index, option) => {
-    const newOptions = [...selectedOptions];
-    newOptions[index] = option;
-    setSelectedOptions(newOptions);
-    setDropdownVisibleIndex(null);
-
-  };
-
-  // Closes the dropdown when clicking outside of it
-  const closeDropdown = (e) => {
-    if (!e.target.closest(".dropdown")) {
-      setDropdownVisibleIndex(null);
-    }
-  };
-
-  React.useEffect(() => {
-    window.addEventListener("click", closeDropdown);
-    return () => {
-      window.removeEventListener("click", closeDropdown);
-    };
-  }, []);
 
   //labels for each dropdown (order corresponds to dropdown buttons)
   const dropdownLabels = [
@@ -73,6 +48,11 @@ function AvatarPage() {
     ["Blonde", "Brown", "Black", "None"],
     ["Cat Ears", "Gnome Hat", "Tiara", "None"],
     ["Cat Onesie", "Overalls", "Princess Dress", "None"],
+  ];
+
+  const cosmeticRewards = [
+    { id: "Cat Ears", cost: 50 },
+    { id: "Princess Dress", cost: 100 },
   ];
 
   //these are where the options are like key valued to their picture name
@@ -116,6 +96,37 @@ function AvatarPage() {
     }
   };
 
+  // Toggles dropdown visibility for the selected index
+  const toggleDropdown = (index) => {
+    setDropdownVisibleIndex(dropdownVisibleIndex === index ? null : index);
+  };
+
+  // Sets the selected option for a specific dropdown and closes it
+  const selectOption = (index, option) => {
+    if (isLocked(option)) {
+      handlePurchase(option); // Trigger purchase if locked
+    } else {
+      const newOptions = [...selectedOptions];
+      newOptions[index] = option;
+      setSelectedOptions(newOptions);
+      setDropdownVisibleIndex(null);
+    }
+  };
+
+  // Closes the dropdown when clicking outside of it
+  const closeDropdown = (e) => {
+    if (!e.target.closest(".dropdown")) {
+      setDropdownVisibleIndex(null);
+    }
+  };
+
+  React.useEffect(() => {
+    window.addEventListener("click", closeDropdown);
+    return () => {
+      window.removeEventListener("click", closeDropdown);
+    };
+  }, []);
+
   // Function to get the selected image based on dropdown selection
   const getSelectedImages = () => {
     return selectedOptions.map((option, index) => {
@@ -126,6 +137,52 @@ function AvatarPage() {
 
   const selectedImages = getSelectedImages();
 
+  //Function to check if reward is locked
+  const isLocked = (option) => {
+    return (
+      Array.isArray(userInventory) &&
+      !userInventory.includes(option) &&
+      cosmeticRewards.some((r) => r.id === option)
+    );
+  };
+  
+
+  // Function to purchase rewards when clicking locked options
+  const handlePurchase = async (option) => {
+    const reward = cosmeticRewards.find((r) => r.id === option);
+    if (reward) {
+      if (points >= reward.cost) {
+        const confirmPurchase = window.confirm(
+          `This item costs ${reward.cost} points. Would you like to purchase it?`
+        );
+        if (confirmPurchase) {
+          const newPoints = points - reward.cost;
+          const newInventory = [...userInventory, reward.id];
+          
+          // Update points and inventory in state
+          setPoints(newPoints);
+          setUserInventory(newInventory);
+
+          // Save updated inventory and points to Firestore
+          try {
+            const userDocRef = doc(db, "user", auth.currentUser.uid);
+            await updateDoc(userDocRef, {
+              points: newPoints,
+              userInventory: newInventory,
+            });
+            alert(`${option} has been unlocked!`);
+          } catch (error) {
+            console.error("Error updating Firestore: ", error);
+            alert("There was an issue updating your inventory. Please try again.");
+          }
+        }
+      } else {
+        alert("Not enough points!");
+      }
+    }
+  };
+
+
 
   return (
     <>
@@ -134,6 +191,18 @@ function AvatarPage() {
         <header className="App-header">
           <img src={logo} className="App-logo" alt="logo" />
           <img src={logo2} className="App-logo2" alt="logo" />
+          {/* Points Display */}
+          <div
+            className="points-display"
+            style={{
+              padding: '10px',
+              backgroundColor: "white",
+              fontWeight: "bold",
+              color: "darkgreen",
+            }}
+          >
+            Points: {points} {/* Dynamically show points */}
+          </div>
           <div className="App-buttons">
             {/* Button to navigate to the homepage*/}
             <Button
@@ -168,6 +237,7 @@ function AvatarPage() {
               Sign Out
             </Button>
           </div>
+          
         </header>
         <div>
           <div
@@ -340,6 +410,7 @@ function AvatarPage() {
                             style={{
                               padding: "5px",
                               margin: 0,
+                              color: isLocked(opt) ? "red" : "black", // Highlight locked items
                               cursor: "pointer",
                             }}
                             onClick={() => selectOption(index, opt)}
