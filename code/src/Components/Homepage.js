@@ -195,7 +195,7 @@ function App({ points, setPoints }) {
                     <img src={star} alt="star"></img> {task.title}
                   </p>
                   <p className="App-colBody2" style={{ paddingLeft: "8%" }}>
-                    +{task.points} points
+                    {task.type} • +{task.points} points
                   </p>
                 </div>
               ))}
