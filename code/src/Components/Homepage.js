@@ -189,7 +189,7 @@ function App({ points, setPoints }) {
                 className="SeparatorRoot"
                 style={{ margin: "15px 0" }}
               />
-              {completedTasks.map((task, index) => (
+              {[...completedTasks].reverse().map((task, index) => (
                 <div key={index}>
                   <p className="App-colBody">
                     <img src={star} alt="star"></img> {task.title}
@@ -244,7 +244,10 @@ function App({ points, setPoints }) {
                   className="SeparatorRoot"
                   style={{ margin: "15px 0" }}
                 />
-                {showTasks && tasks.slice(0, 2).map((t) => (
+                {showTasks && tasks
+                  .filter(t => !t.isCompleted)  // Only show incomplete tasks
+                  .slice(0, 2)  // Show only first two tasks
+                  .map((t) => (
                   <div>
                     <p
                       style={{
