@@ -23,6 +23,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:cov": "react-scripts test --coverage --watchAll --collectCoverageFrom='src/Components/**/*.{js,jsx,ts,tsx}' --collectCoverageFrom='!src/Components/firebase.js'",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {

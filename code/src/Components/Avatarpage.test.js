@@ -47,46 +47,45 @@ describe("Avatar page components", () => {
     expect(dropdownButtons.length).toBe(6);
   });
 
-  //   test("displays the menu when the dropdown button is clicked", () => {
-  //     render(
-  //       <Router>
-  //         <App />
-  //       </Router>
-  //     );
-
-  //     // Find the dropdown button
-  //     const dropdownButton = screen.getByText(/None/i); // Adjust text as necessary
-
-  //     // Initially, the menu should not be visible
-  //     const dropdownMenu = screen.queryByText(/hearts/i); // Adjust text as necessary
-  //     expect(dropdownMenu).not.toBeInTheDocument();
-
-  //     // Simulate clicking the dropdown button
-  //     fireEvent.click(dropdownButton);
-
-  //     // Now, the menu should be visible
-  //     const visibleMenu = screen.getByText(/hearts/i); // Adjust text as necessary
-  //     expect(visibleMenu).toBeInTheDocument();
-  //   });
-
-  test("navigation buttons trigger the appropriate navigation functions", () => {
-    const navigateMock = jest.fn();
+  test("displays the menu when the dropdown button is clicked", () => {
     render(
       <Router>
         <App />
       </Router>
     );
 
-    // Click Home button
-    fireEvent.click(screen.getByText("Home"));
-    expect(navigateMock).toHaveBeenCalledWith("/home");
+    const dropdownButton = screen.getByTestId("dropdown-button-0");
 
-    // Click Tasks button
-    fireEvent.click(screen.getByText("Tasks"));
-    expect(navigateMock).toHaveBeenCalledWith("/task");
+    const dropdownMenu = screen.queryByText("Hearts");
+    expect(dropdownMenu).not.toBeInTheDocument();
 
-    // Click Sign Out button
-    fireEvent.click(screen.getByText("Sign Out"));
-    expect(navigateMock).toHaveBeenCalledWith("/");
+    fireEvent.click(dropdownButton);
+
+    const visibleMenu = screen.getByText("Hearts");
+    expect(visibleMenu).toBeInTheDocument();
+  });
+
+  test("multiple selections update the state and display correct images", () => {
+    render(
+      <Router>
+        <App />
+      </Router>
+    );
+
+    fireEvent.click(screen.getByTestId("dropdown-button-0"));
+
+    fireEvent.click(screen.getByText("Hearts"));
+
+    fireEvent.click(screen.getByTestId("dropdown-button-1"));
+
+    fireEvent.click(screen.getByText("Fair"));
+
+    const heartsImage = screen.getAllByAltText("avatar-option")[0];
+    expect(heartsImage).toBeInTheDocument();
+    expect(heartsImage.src).toContain("bghearts.png");
+
+    const skinImage = screen.getAllByAltText("avatar-option")[1];
+    expect(skinImage).toBeInTheDocument();
+    expect(skinImage.src).toContain("skin1.png");
   });
 });

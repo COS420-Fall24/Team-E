@@ -1,14 +1,22 @@
 import React from "react";
 import logo from "./../logo.svg";
 import logo2 from "./../logo2.svg";
-//import star from "./../star.svg";
 import { Button, Col } from "react-bootstrap";
 //import { Link } from 'react-router-dom'; // might be useful later
 import { useNavigate } from "react-router-dom";
-//import * as Separator from "@radix-ui/react-separator";
 import "./../App.css";
 import { useState } from "react";
 import { FaChevronDown } from "react-icons/fa";
+import eyeblue from './AvatarOptions/eyeblue.png';
+import eyegreen from './AvatarOptions/eyegreen.png';
+import eyebrown from './AvatarOptions/eyebrown.png';
+import skin1 from './AvatarOptions/skin1.png';
+import skin2 from './AvatarOptions/skin2.png';
+import skin3 from './AvatarOptions/skin3.png';
+import flowers from './AvatarOptions/bgflowers.png';
+import hearts from './AvatarOptions/bghearts.png';
+import hairbrown from './AvatarOptions/hairbrown.png';
+
 
 function AvatarPage() {
   const navigate = useNavigate();
@@ -30,6 +38,7 @@ function AvatarPage() {
     newOptions[index] = option;
     setSelectedOptions(newOptions);
     setDropdownVisibleIndex(null);
+
   };
 
   // Closes the dropdown when clicking outside of it
@@ -56,15 +65,67 @@ function AvatarPage() {
     "Outfits",
   ];
 
-  //temporary dropdown values
+  //dropdown menu options
   const dropdownOptions = [
-    ["hearts", "flowers", "pawprints", "None"],
+    ["Hearts", "Flowers", "Pawprints", "None"],
     ["Fair", "Tan", "Dark", "None"],
     ["Blue", "Brown", "Green", "None"],
     ["Blonde", "Brown", "Black", "None"],
     ["Cat Ears", "Gnome Hat", "Tiara", "None"],
     ["Cat Onesie", "Overalls", "Princess Dress", "None"],
   ];
+
+  //these are where the options are like key valued to their picture name
+  //the null ones mean the images have yet to be added
+  const imageOptions = {
+    "Background": {
+      "Hearts": hearts,
+      "Flowers": flowers,
+      "Pawprints": null, 
+      "None": null
+    },
+    "Skin Tone": {
+      "Fair": skin1,
+      "Tan": skin2,
+      "Dark": skin3,
+      "None": null
+    },
+    "Eye Color": {
+      "Blue": eyeblue,
+      "Brown": eyebrown,
+      "Green": eyegreen,
+      "None": null
+    },
+    "Hair": {
+      "Blonde": null, 
+      "Brown": hairbrown,
+      "Black": null, 
+      "None": null
+    },
+    "Hats": {
+      "Cat Ears": null, 
+      "Gnome Hat": null, 
+      "Tiara": null, 
+      "None": null
+    },
+    "Outfits": {
+      "Cat Onesie": null, 
+      "Overalls": null, 
+      "Princess Dress": null, 
+      "None": null
+    }
+  };
+
+  // Function to get the selected image based on dropdown selection
+  const getSelectedImages = () => {
+    return selectedOptions.map((option, index) => {
+      const category = dropdownLabels[index];
+      return imageOptions[category][option];
+    }).filter(Boolean);
+  };
+
+  const selectedImages = getSelectedImages();
+
 
   return (
     <>
@@ -133,8 +194,32 @@ function AvatarPage() {
               }}
             >
               {/* Avatar Goes Here */}
-              <div className="avatarPlaceHolder">
-                <p>Avatar image here later</p>
+              <div className="avatarPlaceHolder"
+                style={{
+                  position: 'absolute',
+                  height: '100%',
+                  width: '30.5%',
+
+                }}>
+                  {/* This is where the options are mapped using the user selected choices*/}
+                   {selectedImages.map((image, index) => (
+                  <img
+                    key={index}
+                    src={image}
+                    className="aghh"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      zIndex: 10 * (index + 1), 
+                      width: "100%",
+                      height: '100%',
+                      objectFit: 'contain',
+                    }}
+                    alt="avatar-option"
+                  />
+                ))}
+
               </div>
             </Col>
 
@@ -209,6 +294,7 @@ function AvatarPage() {
 
                     {/* Actual Dropdown Button */}
                     <button
+                      data-testid={`dropdown-button-${index}`}
                       className="dropbtn"
                       style={{
                         display: "flex",
