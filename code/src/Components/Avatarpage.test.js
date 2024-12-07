@@ -69,6 +69,9 @@ describe("Avatar page components", () => {
           </Router>
         );
 
+        const pointsElement = screen.getByText(/Points:/i);
+        expect(pointsElement).toBeInTheDocument();
+
         fireEvent.click(screen.getByTestId('dropdown-button-0'));
 
         fireEvent.click(screen.getByText('Hearts'));
@@ -84,6 +87,14 @@ describe("Avatar page components", () => {
         const skinImage = screen.getAllByAltText('avatar-option')[1];
         expect(skinImage).toBeInTheDocument();
         expect(skinImage.src).toContain('skin1.png');
+    });
+
+    test("displays user points correctly", () => {
+      render(
+          <Router>
+              <App />
+          </Router>
+      );
     });
 
 

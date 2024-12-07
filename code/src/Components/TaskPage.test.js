@@ -32,4 +32,12 @@ describe("Taskpage component", () => {
     const header = screen.queryAllByRole("img");
     expect(header.length).toBeGreaterThanOrEqual(3);
   });
+
+  test("displays user points correctly", () => {
+    render(
+        <Router>
+            <App />
+        </Router>
+    );
+  });
 });

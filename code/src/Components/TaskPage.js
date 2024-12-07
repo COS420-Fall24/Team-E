@@ -24,10 +24,28 @@ function TaskPage({ points, setPoints }) {
     isRepeat: false,
     repeatType: "",
     points: 15,
+    isCompleted: false
   });
   const [tasks, setTasks] = useState([]);
+  const [weeklyTasks, setWeeklyTasks] = useState([]);
   const { hours, minutes } = generateTimeOptions();
   const [editingTask, setEditingTask] = useState(null);
+
+  const calculateWeeklyProgress = useCallback(() => {
+    const today = new Date();
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    
+    const allWeeklyTasks = tasks.filter(task => {
+      const taskDate = new Date(task.dueDate);
+      return taskDate >= today && taskDate <= nextWeek;
+    });
+    
+    const completedWeeklyTasks = allWeeklyTasks.filter(task => task.isCompleted);
+    
+    if (allWeeklyTasks.length === 0) return "0%";
+    return Math.round((completedWeeklyTasks.length / allWeeklyTasks.length) * 100) + "%";
+  }, [tasks]);
 
   function updateTaskForm(field, value) {
     setTaskForm(prev => ({ ...prev, [field]: value }));
@@ -45,9 +63,22 @@ function TaskPage({ points, setPoints }) {
 
   const completeTask = async (task) => {
     try {
-      // Update local state
-      setPoints((prevPoints) => prevPoints + task.points); 
-      setTasks((prevTasks) => prevTasks.filter((t) => t !== task));
+      // Update local state for points
+      setPoints((prevPoints) => prevPoints + task.points);
+      
+      // Update tasks, removing if expired
+      setTasks((prevTasks) => {
+        const updatedTask = { ...task, isCompleted: true };
+        const newTasks = prevTasks.map(t => 
+          t === task ? updatedTask : t
+        ).filter(t => !isTaskExpired(t));
+        
+        // Update weekly tasks immediately
+        setWeeklyTasks(getWeeklyTasks(newTasks));
+        
+        return newTasks;
+      });
+
       updateAvatar(task);
 
       // Update Firestore
@@ -62,16 +93,25 @@ function TaskPage({ points, setPoints }) {
       
       if (docSnap.exists()) {
         const userData = docSnap.data();
-        const updatedTasks = userData.tasks.filter(t => 
-          t.title !== task.title || 
-          t.task !== task.task || 
-          t.dueDate !== task.dueDate.toISOString()
-        );
+        const updatedTasks = userData.tasks
+          .map(t => {
+            if (t.title === task.title && 
+                t.task === task.task && 
+                t.dueDate === task.dueDate.toISOString()) {
+              return { ...t, isCompleted: true };
+            }
+            return t;
+          })
+          .filter(t => !isTaskExpired({ ...t, dueDate: new Date(t.dueDate) }));
         
-        // Update both tasks and points in one operation
+        // Update tasks, points, and add to completedTasks
         await updateDoc(userDocRef, { 
           tasks: updatedTasks,
-          points: (userData.points || 0) + task.points // Add points to existing total or start at 0
+          points: (userData.points || 0) + task.points,
+          completedTasks: [
+            { ...task, dueDate: task.dueDate.toISOString(), isCompleted: true },
+            ...(userData.completedTasks || []).slice(0, 4)
+          ]
         });
       }
     } catch (error) {
@@ -99,6 +139,7 @@ function TaskPage({ points, setPoints }) {
       isRepeat: false,
       repeatType: "",
       points: 15,
+      isCompleted: false
     });
   }
 
@@ -132,7 +173,7 @@ function TaskPage({ points, setPoints }) {
           dueDate: taskData.dueDate.toISOString()
         });
 
-        // Update with the new array instead of using arrayUnion
+        // Update with the new array
         await updateDoc(userDocRef, {
           tasks: updatedTasks
         });
@@ -149,7 +190,26 @@ function TaskPage({ points, setPoints }) {
     return date instanceof Date && !isNaN(date);
   };
 
-  // Wrap fetchTasksFromFirestore in useCallback
+  const getWeeklyTasks = useCallback((taskList) => {
+    const today = new Date();
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    
+    return taskList
+      .filter(task => {
+        const taskDate = new Date(task.dueDate);
+        return !task.isCompleted && taskDate >= today && taskDate <= nextWeek;
+      })
+      .sort((a, b) => a.dueDate - b.dueDate);
+  }, []);
+
+  // Add this helper function to check if a task is expired
+  const isTaskExpired = (task) => {
+    const now = new Date();
+    return task.isCompleted && new Date(task.dueDate) < now;
+  };
+
+  // Modify fetchTasksFromFirestore to filter out expired completed tasks
   const fetchTasksFromFirestore = useCallback(async () => {
     try {
       const userId = auth.currentUser?.uid;
@@ -164,22 +224,33 @@ function TaskPage({ points, setPoints }) {
       if (docSnap.exists()) {
         const userData = docSnap.data();
         if (userData.tasks) {
-          console.log('Raw tasks from Firestore:', userData.tasks);
           const processedTasks = userData.tasks
             .map(task => ({
               ...task,
               dueDate: new Date(task.dueDate)
             }))
-            .filter(task => isValidDate(task.dueDate));
+            .filter(task => isValidDate(task.dueDate) && !isTaskExpired(task))
+            .sort((a, b) => a.dueDate - b.dueDate);
+          
+          // If there are expired tasks, update Firestore
+          if (processedTasks.length !== userData.tasks.length) {
+            await updateDoc(userDocRef, {
+              tasks: processedTasks.map(task => ({
+                ...task,
+                dueDate: task.dueDate.toISOString()
+              }))
+            });
+          }
 
-          console.log('Processed tasks:', processedTasks);
           setTasks(processedTasks);
+          const weeklyTasksList = getWeeklyTasks(processedTasks);
+          setWeeklyTasks(weeklyTasksList);
         }
       }
     } catch (error) {
       console.error("Error fetching tasks:", error);
     }
-  }, []); // Empty dependency array because it doesn't depend on any props or state
+  }, [getWeeklyTasks]);
 
   function handleSubmit() {
     const updatedTask = editTask(
@@ -193,17 +264,23 @@ function TaskPage({ points, setPoints }) {
 
     if (editingTask) {
       // Update existing task and sort
-      setTasks(prevTasks => 
-        [...prevTasks.map(task => 
+      setTasks(prevTasks => {
+        const newTasks = [...prevTasks.map(task => 
           task === editingTask ? updatedTask : task
-        )].sort((a, b) => a.dueDate - b.dueDate)
-      );
+        )].sort((a, b) => a.dueDate - b.dueDate);
+        // Update weekly tasks
+        setWeeklyTasks(getWeeklyTasks(newTasks));
+        return newTasks;
+      });
       setEditingTask(null);
     } else {
       // Add new task and sort
-      setTasks(prevTasks => 
-        [...prevTasks, updatedTask].sort((a, b) => a.dueDate - b.dueDate)
-      );
+      setTasks(prevTasks => {
+        const newTasks = [...prevTasks, updatedTask].sort((a, b) => a.dueDate - b.dueDate);
+        // Update weekly tasks
+        setWeeklyTasks(getWeeklyTasks(newTasks));
+        return newTasks;
+      });
     }
     
     resetForm();
@@ -245,6 +322,8 @@ function TaskPage({ points, setPoints }) {
   };
 
   const currentDate = new Date();
+  const nextWeek = new Date(currentDate);
+  nextWeek.setDate(currentDate.getDate() + 7);
   const monthName = currentDate.toLocaleString("default", { month: "long" });
 
   // Function to open the modal
@@ -369,7 +448,9 @@ function TaskPage({ points, setPoints }) {
               width: "100%",
               marginBottom: "20px"
             }}>
-              {tasks.map((t) => (  // Removed slice to show all tasks
+              {tasks
+                .filter(t => !t.isCompleted)  // Only show incomplete tasks
+                .map((t) => (
                 <div
                   className="App-bordered"
                   style={{
@@ -378,9 +459,9 @@ function TaskPage({ points, setPoints }) {
                     border: "2px solid gray",
                     marginBottom: "2%",
                     display: "flex",
-                    minHeight: "fit-content",  // Added to ensure box expands
-                    height: "auto",            // Added to allow dynamic height
-                    flexWrap: "wrap"          // Added to handle content wrapping
+                    minHeight: "fit-content",
+                    height: "auto",
+                    flexWrap: "wrap"
                   }}
                 >
                   <Col
@@ -423,6 +504,15 @@ function TaskPage({ points, setPoints }) {
                         }}
                       >
                         {t.title}
+                        {new Date(t.dueDate) < new Date() && (
+                          <span style={{
+                            color: '#FF9494',
+                            marginLeft: '10px',
+                            fontSize: '90%'
+                          }}>
+                            PAST DUE
+                          </span>
+                        )}
                       </p>
                       <p
                         style={{
@@ -492,7 +582,7 @@ function TaskPage({ points, setPoints }) {
           <div
             style={{
               paddingTop: "10%",
-              paddingLeft: "39%",
+              paddingLeft: "28%",
               textAlign: "center",
             }}
           >
@@ -504,9 +594,9 @@ function TaskPage({ points, setPoints }) {
                 lineHeight: "50%",
               }}
             >
-              100%
+              {calculateWeeklyProgress()}
             </p>
-            <p style={{ lineHeight: "50%" }}>progress</p>
+            <p style={{ lineHeight: "40%" }}>Weekly progress</p>
           </div>
         </Col>
         <Col
@@ -541,9 +631,9 @@ function TaskPage({ points, setPoints }) {
                 color: "gray",
               }}
             >
-              {currentDate.getMonth() + 1}/{currentDate.getDate()}
+              {currentDate.getMonth() + 1}/{currentDate.getDate()} to {nextWeek.getMonth() + 1}/{nextWeek.getDate()}
             </p>
-            {tasks.slice(0, 2).map((t) => (
+            {weeklyTasks.map((t) => (
               <div>
                 <p
                   style={{

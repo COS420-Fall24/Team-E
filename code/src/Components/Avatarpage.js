@@ -1,11 +1,13 @@
-import React from "react";
+import React, {useState} from "react";
 import logo from "./../logo.svg";
 import logo2 from "./../logo2.svg";
 import { Button, Col } from "react-bootstrap";
+import { doc, updateDoc } from "firebase/firestore";
+import { auth } from '../Components/firebase';
+import { db } from "./firebase";
 //import { Link } from 'react-router-dom'; // might be useful later
 import { useNavigate } from "react-router-dom";
 import "./../App.css";
-import { useState } from "react";
 import { FaChevronDown } from "react-icons/fa";
 import eyeblue from './AvatarOptions/eyeblue.png';
 import eyegreen from './AvatarOptions/eyegreen.png';
@@ -18,7 +20,7 @@ import hearts from './AvatarOptions/bghearts.png';
 import hairbrown from './AvatarOptions/hairbrown.png';
 
 
-function AvatarPage({ points, setPoints }) {
+function AvatarPage({ points, setPoints, userInventory, setUserInventory}) {
   const navigate = useNavigate();
 
   // State to track which dropdown is currently visible (null = none visible)
@@ -27,8 +29,6 @@ function AvatarPage({ points, setPoints }) {
   // State to track selected options for each dropdown
   const [selectedOptions, setSelectedOptions] = useState(Array(6).fill("None"));
 
-  // User inventory to keep track of purchased rewards
-  const [userInventory, setUserInventory] = useState([]);
 
   //labels for each dropdown (order corresponds to dropdown buttons)
   const dropdownLabels = [
@@ -138,12 +138,17 @@ function AvatarPage({ points, setPoints }) {
   const selectedImages = getSelectedImages();
 
   //Function to check if reward is locked
-  const isLocked = (option) =>
-    !userInventory.includes(option) &&
-    cosmeticRewards.some((r) => r.id === option);
+  const isLocked = (option) => {
+    return (
+      Array.isArray(userInventory) &&
+      !userInventory.includes(option) &&
+      cosmeticRewards.some((r) => r.id === option)
+    );
+  };
+  
 
-  // Function to purchase rewards when clicking locked options (new code)
-  const handlePurchase = (option) => {
+  // Function to purchase rewards when clicking locked options
+  const handlePurchase = async (option) => {
     const reward = cosmeticRewards.find((r) => r.id === option);
     if (reward) {
       if (points >= reward.cost) {
@@ -151,15 +156,32 @@ function AvatarPage({ points, setPoints }) {
           `This item costs ${reward.cost} points. Would you like to purchase it?`
         );
         if (confirmPurchase) {
-          setPoints((prevPoints) => prevPoints - reward.cost);
-          setUserInventory((prev) => [...prev, reward.id]);
-          alert(`${option} has been unlocked!`);
+          const newPoints = points - reward.cost;
+          const newInventory = [...userInventory, reward.id];
+          
+          // Update points and inventory in state
+          setPoints(newPoints);
+          setUserInventory(newInventory);
+
+          // Save updated inventory and points to Firestore
+          try {
+            const userDocRef = doc(db, "user", auth.currentUser.uid);
+            await updateDoc(userDocRef, {
+              points: newPoints,
+              userInventory: newInventory,
+            });
+            alert(`${option} has been unlocked!`);
+          } catch (error) {
+            console.error("Error updating Firestore: ", error);
+            alert("There was an issue updating your inventory. Please try again.");
+          }
         }
       } else {
         alert("Not enough points!");
       }
     }
   };
+
 
 
   return (

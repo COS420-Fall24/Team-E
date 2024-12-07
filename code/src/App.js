@@ -13,6 +13,8 @@ import "./App.css";
 
 function App() {
   const [points, setPoints] = useState(0);
+  // User inventory to keep track of purchased rewards
+  const [userInventory, setUserInventory] = useState([]);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
@@ -20,6 +22,9 @@ function App() {
         const userDoc = await getDoc(doc(db, "user", user.uid));
         if (userDoc.exists() && userDoc.data().points !== undefined) {
           setPoints(userDoc.data().points);
+        }
+        if (userDoc.exists() && userDoc.data().userInventory !== undefined) {
+          setUserInventory(userDoc.data().userInventory);
         }
       }
     });
@@ -35,7 +40,7 @@ function App() {
             <Route path="/home" element={<HomePage points={points} setPoints={setPoints}/>} />
             <Route path="/task" element={<TaskPage points={points} setPoints={setPoints}/>} />
             <Route path="/register" element={<SignUp />} />
-            <Route path="/avatar" element={<AvatarPage points={points} setPoints={setPoints}/>} />
+            <Route path="/avatar" element={<AvatarPage points={points} setPoints={setPoints} userInventory={userInventory} setUserInventory={setUserInventory}/>} />
           </Routes>
         </div>
       </Router>
