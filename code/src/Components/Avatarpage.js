@@ -1,26 +1,34 @@
-import React, {useState} from "react";
+import React, { useState } from "react";
 import logo from "./../logo.svg";
 import logo2 from "./../logo2.svg";
 import { Button, Col } from "react-bootstrap";
 import { doc, updateDoc } from "firebase/firestore";
-import { auth } from '../Components/firebase';
+import { auth } from "../Components/firebase";
 import { db } from "./firebase";
 //import { Link } from 'react-router-dom'; // might be useful later
 import { useNavigate } from "react-router-dom";
 import "./../App.css";
 import { FaChevronDown } from "react-icons/fa";
-import eyeblue from './AvatarOptions/eyeblue.png';
-import eyegreen from './AvatarOptions/eyegreen.png';
-import eyebrown from './AvatarOptions/eyebrown.png';
-import skin1 from './AvatarOptions/skin1.png';
-import skin2 from './AvatarOptions/skin2.png';
-import skin3 from './AvatarOptions/skin3.png';
-import flowers from './AvatarOptions/bgflowers.png';
-import hearts from './AvatarOptions/bghearts.png';
-import hairbrown from './AvatarOptions/hairbrown.png';
+import eyeblue from "./AvatarOptions/eyeblue.png";
+import eyegreen from "./AvatarOptions/eyegreen.png";
+import eyebrown from "./AvatarOptions/eyebrown.png";
+import skin1 from "./AvatarOptions/skin1.png";
+import skin2 from "./AvatarOptions/skin2.png";
+import skin3 from "./AvatarOptions/skin3.png";
+import flowers from "./AvatarOptions/bgflowers.png";
+import hearts from "./AvatarOptions/bghearts.png";
+import pawprints from "./AvatarOptions/bgpawprint.png";
+import hairbrown from "./AvatarOptions/hairbrown.png";
+import hairblack from "./AvatarOptions/hairblack.png";
+import hairblonde from "./AvatarOptions/hairblonde.png";
+import overalls from "./AvatarOptions/overalls.png";
+import princessdress from "./AvatarOptions/princessdress.png";
+import catonesie from "./AvatarOptions/catonesie.png";
+import tiara from "./AvatarOptions/tiara.png";
+import gnomehat from "./AvatarOptions/gnomehat.png";
+import catears from "./AvatarOptions/catears.png";
 
-
-function AvatarPage({ points, setPoints, userInventory, setUserInventory}) {
+function AvatarPage({ points, setPoints, userInventory, setUserInventory }) {
   const navigate = useNavigate();
 
   // State to track which dropdown is currently visible (null = none visible)
@@ -28,7 +36,6 @@ function AvatarPage({ points, setPoints, userInventory, setUserInventory}) {
 
   // State to track selected options for each dropdown
   const [selectedOptions, setSelectedOptions] = useState(Array(6).fill("None"));
-
 
   //labels for each dropdown (order corresponds to dropdown buttons)
   const dropdownLabels = [
@@ -58,42 +65,42 @@ function AvatarPage({ points, setPoints, userInventory, setUserInventory}) {
   //these are where the options are like key valued to their picture name
   //the null ones mean the images have yet to be added
   const imageOptions = {
-    "Background": {
-      "Hearts": hearts,
-      "Flowers": flowers,
-      "Pawprints": null, 
-      "None": null
+    Background: {
+      Hearts: hearts,
+      Flowers: flowers,
+      Pawprints: pawprints,
+      None: null,
     },
     "Skin Tone": {
-      "Fair": skin1,
-      "Tan": skin2,
-      "Dark": skin3,
-      "None": null
+      Fair: skin1,
+      Tan: skin2,
+      Dark: skin3,
+      None: null,
     },
     "Eye Color": {
-      "Blue": eyeblue,
-      "Brown": eyebrown,
-      "Green": eyegreen,
-      "None": null
+      Blue: eyeblue,
+      Brown: eyebrown,
+      Green: eyegreen,
+      None: null,
     },
-    "Hair": {
-      "Blonde": null, 
-      "Brown": hairbrown,
-      "Black": null, 
-      "None": null
+    Hair: {
+      Blonde: hairblonde,
+      Brown: hairbrown,
+      Black: hairblack,
+      None: null,
     },
-    "Hats": {
-      "Cat Ears": null, 
-      "Gnome Hat": null, 
-      "Tiara": null, 
-      "None": null
+    Hats: {
+      "Cat Ears": catears,
+      "Gnome Hat": gnomehat,
+      Tiara: tiara,
+      None: null,
     },
-    "Outfits": {
-      "Cat Onesie": null, 
-      "Overalls": null, 
-      "Princess Dress": null, 
-      "None": null
-    }
+    Outfits: {
+      "Cat Onesie": catonesie,
+      Overalls: overalls,
+      "Princess Dress": princessdress,
+      None: null,
+    },
   };
 
   // Toggles dropdown visibility for the selected index
@@ -129,10 +136,12 @@ function AvatarPage({ points, setPoints, userInventory, setUserInventory}) {
 
   // Function to get the selected image based on dropdown selection
   const getSelectedImages = () => {
-    return selectedOptions.map((option, index) => {
-      const category = dropdownLabels[index];
-      return imageOptions[category][option];
-    }).filter(Boolean);
+    return selectedOptions
+      .map((option, index) => {
+        const category = dropdownLabels[index];
+        return imageOptions[category][option];
+      })
+      .filter(Boolean);
   };
 
   const selectedImages = getSelectedImages();
@@ -145,7 +154,6 @@ function AvatarPage({ points, setPoints, userInventory, setUserInventory}) {
       cosmeticRewards.some((r) => r.id === option)
     );
   };
-  
 
   // Function to purchase rewards when clicking locked options
   const handlePurchase = async (option) => {
@@ -158,7 +166,7 @@ function AvatarPage({ points, setPoints, userInventory, setUserInventory}) {
         if (confirmPurchase) {
           const newPoints = points - reward.cost;
           const newInventory = [...userInventory, reward.id];
-          
+
           // Update points and inventory in state
           setPoints(newPoints);
           setUserInventory(newInventory);
@@ -173,7 +181,9 @@ function AvatarPage({ points, setPoints, userInventory, setUserInventory}) {
             alert(`${option} has been unlocked!`);
           } catch (error) {
             console.error("Error updating Firestore: ", error);
-            alert("There was an issue updating your inventory. Please try again.");
+            alert(
+              "There was an issue updating your inventory. Please try again."
+            );
           }
         }
       } else {
@@ -181,8 +191,6 @@ function AvatarPage({ points, setPoints, userInventory, setUserInventory}) {
       }
     }
   };
-
-
 
   return (
     <>
@@ -195,7 +203,7 @@ function AvatarPage({ points, setPoints, userInventory, setUserInventory}) {
           <div
             className="points-display"
             style={{
-              padding: '10px',
+              padding: "10px",
               backgroundColor: "white",
               fontWeight: "bold",
               color: "darkgreen",
@@ -237,7 +245,6 @@ function AvatarPage({ points, setPoints, userInventory, setUserInventory}) {
               Sign Out
             </Button>
           </div>
-          
         </header>
         <div>
           <div
@@ -264,32 +271,32 @@ function AvatarPage({ points, setPoints, userInventory, setUserInventory}) {
               }}
             >
               {/* Avatar Goes Here */}
-              <div className="avatarPlaceHolder"
+              <div
+                className="avatarPlaceHolder"
                 style={{
-                  position: 'absolute',
-                  height: '100%',
-                  width: '30.5%',
-
-                }}>
-                  {/* This is where the options are mapped using the user selected choices*/}
-                   {selectedImages.map((image, index) => (
+                  position: "absolute",
+                  height: "100%",
+                  width: "30.5%",
+                }}
+              >
+                {/* This is where the options are mapped using the user selected choices*/}
+                {selectedImages.map((image, index) => (
                   <img
                     key={index}
                     src={image}
                     className="aghh"
                     style={{
-                      position: 'absolute',
+                      position: "absolute",
                       top: 0,
                       left: 0,
-                      zIndex: 10 * (index + 1), 
+                      zIndex: 10 * (index + 1),
                       width: "100%",
-                      height: '100%',
-                      objectFit: 'contain',
+                      height: "100%",
+                      objectFit: "contain",
                     }}
                     alt="avatar-option"
                   />
                 ))}
-
               </div>
             </Col>
 
