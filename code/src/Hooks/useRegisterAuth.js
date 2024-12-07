@@ -39,6 +39,8 @@ const useRegisterAuth = () => {
         username: userName,
         tasks: [],
         points: 0,
+        userInventory: [],
+        completedTasks: [],
       });
 
       console.log("User created:", user);
