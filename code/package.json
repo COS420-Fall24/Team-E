@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@pollinations/react": "^2.0.7",
     "@radix-ui/react-popover": "1.1.2",
     "@radix-ui/react-separator": "1.1.0",
     "@testing-library/jest-dom": "^5.17.0",
